@@ -62,10 +62,10 @@ public class PayeezyGooglePay extends CordovaPlugin {
 
   private PaymentsClient paymentsClient = null;
   private PaymentsClient mPaymentsClient = null;
-  private CallbackContext callback;
+  private static CallbackContext callback;
   private int environment;
-  private String api_key,api_secret,country_code,currency_code,environment,merchant_id,merchant_ref,merchant_ref,merchant_token,url;
-  private Double price;
+  private static String api_key,api_secret,country_code,currency_code,environments,merchant_id,merchant_ref,merchant_token,url;
+  private static String price;
 
   @Override
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
@@ -74,7 +74,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
 
   @Override
   public boolean execute(final String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
-    this.callback = callbackContext;
+    callback = callbackContext;
 
     // if (action.equals(SET_KEY)) {
     //   this.setKey(data.getString(0));
@@ -85,7 +85,11 @@ public class PayeezyGooglePay extends CordovaPlugin {
     //   this.callback.error("SGAP not initialised. Please run sgap.setKey(STRIPE_PUBLISHABLE).");
     // }
 
-    this.mPaymentsClient = this.createPaymentsClient(this);
+    this.mPaymentsClient = Wallet.getPaymentsClient(
+        this.cordova.getActivity().getApplicationContext(),
+        new Wallet.WalletOptions.Builder()
+            .setEnvironment(this.environment)
+            .build());
 
     if (action.equals(IS_READY_TO_PAY)) {
       this.isReadyToPay();
@@ -109,17 +113,17 @@ public class PayeezyGooglePay extends CordovaPlugin {
       .build();
 
     Task<Boolean> task = paymentsClient.isReadyToPay(request);
-    CallbackContext callbackContext = this.callback;
+    final CallbackContext callbackContext = callback;
     task.addOnCompleteListener(
       new OnCompleteListener<Boolean>() {
         public void onComplete(Task<Boolean> task) {
           try {
             boolean result = task.getResult(ApiException.class);
-            if (!result) this.callbackContext.error("Not supported");
+            if (!result) callbackContext.error("Not supported");
             else callbackContext.success();
 
           } catch (ApiException exception) {
-            this.callbackContext.error(exception.getMessage());
+            callbackContext.error(exception.getMessage());
           }
         }
       });
@@ -127,25 +131,25 @@ public class PayeezyGooglePay extends CordovaPlugin {
 
   private void requestPayment (JSONObject paymentDetails) {
     // PaymentDataRequest request = this.createPaymentDataRequest(totalPrice, currency);
-
-    this.price = paymentDetails.getString("price");
+    try {
+    price = paymentDetails.getString("price");
     //  try {
     //         Double.parseDouble(this.price);
     //     } catch (NumberFormatException e) {
     //          callbackContext.error("Invalid amount");
     //         return;
     //     }
-    this.api_key = paymentDetails.getString("api_key");
-    this.api_secret = paymentDetails.getString("api_secret");
-    this.country_code = paymentDetails.getString("country_code");
-    this.currency_code = paymentDetails.getString("currency_code");
-    this.environment = paymentDetails.getString("environment");
-    this.merchant_id = paymentDetails.getString("merchant_id");
-    this.merchant_ref = paymentDetails.getString("merchant_ref");
-    this.merchant_token = paymentDetails.getString("merchant_token");
-    this.url = paymentDetails.getString("url");
+    api_key = paymentDetails.getString("api_key");
+    api_secret = paymentDetails.getString("api_secret");
+    country_code = paymentDetails.getString("country_code");
+    currency_code = paymentDetails.getString("currency_code");
+    environments = paymentDetails.getString("environment");
+    merchant_id = paymentDetails.getString("merchant_id");
+    merchant_ref = paymentDetails.getString("merchant_ref");
+    merchant_token = paymentDetails.getString("merchant_token");
+    url = paymentDetails.getString("url");
 
-    TransactionInfo transaction = this.createTransaction(this.price);
+    TransactionInfo transaction = this.createTransaction(this.price,this.currency_code);
         PaymentDataRequest request = this.createPaymentDataRequest(transaction);
     Activity activity = this.cordova.getActivity();
     if (request != null) {
@@ -154,6 +158,9 @@ public class PayeezyGooglePay extends CordovaPlugin {
       paymentsClient.loadPaymentData(request),
           activity,
           LOAD_PAYMENT_DATA_REQUEST_CODE);
+    }
+    } catch (JSONException e) {
+      callback.error(e.getLocalizedMessage());
     }
   }
 
@@ -181,13 +188,14 @@ public class PayeezyGooglePay extends CordovaPlugin {
                     case Activity.RESULT_CANCELED:
                         // Nothing to here normally - the user simply cancelled without selecting a
                         // payment method.
-                         this.callback.error("In cancelled!!");
+                         callback.error("In cancelled!!");
                         break;
                     case AutoResolveHelper.RESULT_ERROR:
                         
                         Status status = AutoResolveHelper.getStatusFromIntent(data);
-                         this.callback.error("loadPaymentData failed", String.format("Error code: %d", status.getStatusCode()));
-                        Log.w("loadPaymentData failed", String.format("Error code: %d"+''+status.getStatusCode()));
+                         callback.error("loadPaymentData failed");
+                        // ,status.getStatusCode()
+                        
                         break;
                 }
 
@@ -244,14 +252,13 @@ public class PayeezyGooglePay extends CordovaPlugin {
 
 
             StringRequest request = new StringRequest(
-                    Request.Method.POST,
-                    this.url,
+                    Request.Method.POST,this.getUrl(),
                     new Response.Listener<String>() {
                         @Override
                         public void onResponse(String response) {
                             //  request completed - launch the response activity
                             // startResponseActivity("SUCCESS", response);
-                             this.callback.success();
+                             callback.success();
                             
                         }
                     },
@@ -260,7 +267,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
                         public void onErrorResponse(VolleyError error) {
 
                             // startResponseActivity("ERROR", formatErrorResponse(error));
-                             this.callback.error("ERROR", formatErrorResponse(error));
+                             callback.error(formatErrorResponse(error));
                         }
                     }) {
 
@@ -280,26 +287,26 @@ public class PayeezyGooglePay extends CordovaPlugin {
 
                 @Override
                 public Map<String, String> getHeaders() throws AuthFailureError {
-                    Map<String, String> headerMap = new HashMap<String, String>(this.HMACMap);
+                    Map<String, String> headerMap = new HashMap<String, String>(HMACMap);
 
                     //  First data issued APIKey identifies the developer
-                    headerMap.put("apikey", this.api_key);
+                    headerMap.put("apikey", api_key);
 
                     //  First data issued token identifies the merchant
-                    headerMap.put("token", this.merchant_token);
+                    headerMap.put("token", merchant_token);
 
                     return headerMap;
                 }
             };
 
             request.setRetryPolicy(new DefaultRetryPolicy(0, -1, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-            RequestQueue queue = Volley.newRequestQueue(CheckoutActivity.this);
+            RequestQueue queue = Volley.newRequestQueue(this.cordova.getActivity().getApplicationContext());
 
             queue.add(request);
 
         } catch (JSONException e) {
             // Toast.makeText(CheckoutActivity.this, "Error parsing JSON payload", Toast.LENGTH_LONG).show();
-            this.callback.error("Error parsing JSON payload");
+            callback.error("Error parsing JSON payload");
         }
     }
 
@@ -321,8 +328,8 @@ public class PayeezyGooglePay extends CordovaPlugin {
                 ve.networkResponse.statusCode, new String(ve.networkResponse.data));
     }
 
-     private static String getUrl(String env) {
-        return this.url;
+     private static String getUrl() {
+        return url;
     }
 
     private String formatAmount(String amount) {
@@ -344,7 +351,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
         pm.put("merchant_ref", "orderid");
         pm.put("transaction_type", "purchase");
         pm.put("method", "3DS");
-        pm.put("amount", formatAmount(this.price));
+        pm.put("amount", formatAmount(price));
         pm.put("currency_code", "USD");
 
         Map<String, Object> ccmap = new HashMap<String, Object>();
@@ -368,11 +375,11 @@ public class PayeezyGooglePay extends CordovaPlugin {
     private Map<String, String> computeHMAC(String payload) {
 
         // EnvProperties ep = EnvData.getProperties(mEnv);
-        String apiSecret = this.api_secret;
-        String apiKey = this.api_key;
-        String token = this.merchant_token;
+        String apiSecret = api_secret;
+        String apiKey = api_key;
+        String token = merchant_token;
 
-        Map<String, String> headerMap = new HashMap<String, Object>();
+        Map<String, String> headerMap = new HashMap<String, String>();
         if (apiSecret != null) {
             try {
                 String authorizeString;
@@ -435,7 +442,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
                         .setPaymentMethodTokenizationType(
                                 WalletConstants.PAYMENT_METHOD_TOKENIZATION_TYPE_PAYMENT_GATEWAY)
                         .addParameter("gateway", "firstdata")
-                        .addParameter("gatewayMerchantId", this.merchant_id);
+                        .addParameter("gatewayMerchantId", merchant_id);
 
 
 
@@ -481,12 +488,16 @@ public class PayeezyGooglePay extends CordovaPlugin {
                         // supported.
                         .setShippingAddressRequirements(
                                 ShippingAddressRequirements.newBuilder()
-                                        .addAllowedCountryCodes("US")
+                                        .addAllowedCountryCodes(Arrays.asList(
+            "US"//,
+//            "GB"
+))
                                         .build())
 
                         .setTransactionInfo(transactionInfo)
-                        .addAllowedPaymentMethods(WalletConstants.PAYMENT_METHOD_CARD)
-                        .addAllowedPaymentMethods(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
+                        .addAllowedPaymentMethods(Arrays.asList(
+                        WalletConstants.PAYMENT_METHOD_CARD,
+                        WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD))
                         .setCardRequirements(
                                 CardRequirements.newBuilder()
                                         .addAllowedCardNetworks(Arrays.asList(
@@ -540,11 +551,11 @@ public class PayeezyGooglePay extends CordovaPlugin {
      *
      * @param price total of the transaction.
      */
-    public static TransactionInfo createTransaction(String price) {
+    public static TransactionInfo createTransaction(String price,String currency_code) {
         return TransactionInfo.newBuilder()
                 .setTotalPriceStatus(WalletConstants.TOTAL_PRICE_STATUS_FINAL)
                 .setTotalPrice(price)
-                .setCurrencyCode(this.currency_code)
+                .setCurrencyCode(currency_code)
                 .build();
     }
 
@@ -553,7 +564,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
      *
      * @param micros value of the price.
      */
-    public static String microsToString(long micros) {
-        return new BigDecimal(micros).divide(MICROS).setScale(2, RoundingMode.HALF_EVEN).toString();
-    }
+    // public static String microsToString(long micros) {
+    //     return new BigDecimal(micros).divide(MICROS).setScale(2, RoundingMode.HALF_EVEN).toString();
+    // }
 }
