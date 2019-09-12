@@ -1,4 +1,4 @@
-package stripegoogleapplepay;
+package payeezygooglepay;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -53,14 +53,15 @@ import javax.crypto.spec.SecretKeySpec;
 
 import java.util.Arrays;
 
-public class StripeGoogleApplePay extends CordovaPlugin {
+public class PayeezyGooglePay extends CordovaPlugin {
   private static final String SET_KEY = "set_key";
   private static final String IS_READY_TO_PAY = "is_ready_to_pay";
   private static final String REQUEST_PAYMENT = "request_payment";
-
+  private static final BigDecimal MICROS = new BigDecimal(1000000d);
   private static final int LOAD_PAYMENT_DATA_REQUEST_CODE = 42;
 
   private PaymentsClient paymentsClient = null;
+  private PaymentsClient mPaymentsClient = null;
   private CallbackContext callback;
   private int environment;
   private String api_key,api_secret,country_code,currency_code,environment,merchant_id,merchant_ref,merchant_ref,merchant_token,url;
@@ -84,8 +85,7 @@ public class StripeGoogleApplePay extends CordovaPlugin {
     //   this.callback.error("SGAP not initialised. Please run sgap.setKey(STRIPE_PUBLISHABLE).");
     // }
 
-    mPaymentsClient = this.createPaymentsClient(this);
-        mEnv="CERT";
+    this.mPaymentsClient = this.createPaymentsClient(this);
 
     if (action.equals(IS_READY_TO_PAY)) {
       this.isReadyToPay();
@@ -115,11 +115,11 @@ public class StripeGoogleApplePay extends CordovaPlugin {
         public void onComplete(Task<Boolean> task) {
           try {
             boolean result = task.getResult(ApiException.class);
-            if (!result) callbackContext.error("Not supported");
+            if (!result) this.callbackContext.error("Not supported");
             else callbackContext.success();
 
           } catch (ApiException exception) {
-            callbackContext.error(exception.getMessage());
+            this.callbackContext.error(exception.getMessage());
           }
         }
       });
@@ -129,6 +129,12 @@ public class StripeGoogleApplePay extends CordovaPlugin {
     // PaymentDataRequest request = this.createPaymentDataRequest(totalPrice, currency);
 
     this.price = paymentDetails.getString("price");
+    //  try {
+    //         Double.parseDouble(this.price);
+    //     } catch (NumberFormatException e) {
+    //          callbackContext.error("Invalid amount");
+    //         return;
+    //     }
     this.api_key = paymentDetails.getString("api_key");
     this.api_secret = paymentDetails.getString("api_secret");
     this.country_code = paymentDetails.getString("country_code");
@@ -175,19 +181,18 @@ public class StripeGoogleApplePay extends CordovaPlugin {
                     case Activity.RESULT_CANCELED:
                         // Nothing to here normally - the user simply cancelled without selecting a
                         // payment method.
-                        Toast.makeText(this, "In cancelled!!", Toast.LENGTH_LONG).show();
                          this.callback.error("In cancelled!!");
                         break;
                     case AutoResolveHelper.RESULT_ERROR:
                         
                         Status status = AutoResolveHelper.getStatusFromIntent(data);
                          this.callback.error("loadPaymentData failed", String.format("Error code: %d", status.getStatusCode()));
-                        Log.w("loadPaymentData failed", String.format("Error code: %d", status.getStatusCode()));
+                        Log.w("loadPaymentData failed", String.format("Error code: %d"+''+status.getStatusCode()));
                         break;
                 }
 
                 // Re-enables the Pay with Google button.
-                mPwgButton.setClickable(true);
+                // mPwgButton.setClickable(true);
                 break;
         }
     }
@@ -275,7 +280,7 @@ public class StripeGoogleApplePay extends CordovaPlugin {
 
                 @Override
                 public Map<String, String> getHeaders() throws AuthFailureError {
-                    Map<String, String> headerMap = new HashMap<>(HMACMap);
+                    Map<String, String> headerMap = new HashMap<String, String>(this.HMACMap);
 
                     //  First data issued APIKey identifies the developer
                     headerMap.put("apikey", this.api_key);
@@ -335,14 +340,14 @@ public class StripeGoogleApplePay extends CordovaPlugin {
      * @return
      */
     private JSONObject getRequestPayload(String signedMessage, String protocolVersion, String signature) {
-        Map<String, Object> pm = new HashMap<>();
+        Map<String, Object> pm = new HashMap<String, Object>();
         pm.put("merchant_ref", "orderid");
         pm.put("transaction_type", "purchase");
         pm.put("method", "3DS");
         pm.put("amount", formatAmount(this.price));
         pm.put("currency_code", "USD");
 
-        Map<String, Object> ccmap = new HashMap<>();
+        Map<String, Object> ccmap = new HashMap<String, Object>();
         ccmap.put("type", "G");             //  Identify the request as Android Pay request
         ccmap.put("version", protocolVersion); // New field "version" identifies Android or Google Pay
         ccmap.put("data", signedMessage);
@@ -367,7 +372,7 @@ public class StripeGoogleApplePay extends CordovaPlugin {
         String apiKey = this.api_key;
         String token = this.merchant_token;
 
-        Map<String, String> headerMap = new HashMap<>();
+        Map<String, String> headerMap = new HashMap<String, Object>();
         if (apiSecret != null) {
             try {
                 String authorizeString;
@@ -476,7 +481,7 @@ public class StripeGoogleApplePay extends CordovaPlugin {
                         // supported.
                         .setShippingAddressRequirements(
                                 ShippingAddressRequirements.newBuilder()
-                                        .addAllowedCountryCodes(["US"])
+                                        .addAllowedCountryCodes("US")
                                         .build())
 
                         .setTransactionInfo(transactionInfo)
