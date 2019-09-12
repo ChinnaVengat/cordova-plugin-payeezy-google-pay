@@ -1,0 +1,15 @@
+{
+  "name": "cordova-plugin-payeezy-google-pay",
+  "version": "0.0.1",
+  "description": "Cordova plugin for Google and Apple pay",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChinnaVengat/cordova-plugin-payeezy-google-pay.git"
+  },
+  "author": "Vengat <chinna7313@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ChinnaVengat/cordova-plugin-payeezy-google-pay/issues"
+  },
+  "homepage": "https://github.com/ChinnaVengat/cordova-plugin-payeezy-google-pay#readme"
+}
