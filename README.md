@@ -25,13 +25,14 @@ cordova plugin add cordova-plugin-payeezy-google-pay
 This plugin puts the functions into `window.sgap`.
 All functions return a promise.
 
+```
 sgap.isReadyToPay()
 ```
  - Used to test if the appropriate payment method is available on the current device.
  - Resolves if appropriate payment method is available
  - Rejects if not, or if it encounters an error
 
-```javascript
+```
 sgap.requestPayment(
    {
       price: "12.50",
