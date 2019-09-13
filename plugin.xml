@@ -35,7 +35,6 @@
         <framework src="com.android.support:support-v4:27.0.2" />
         <framework src="com.android.support:appcompat-v7:26.0.1" />
         <framework src="com.android.volley:volley:1.0.0"/>
-        <framework src="com.mcxiaoke.volley:library-aar:1.0.0"/>
     </platform>
 <!--<platform name="ios">
         <config-file target="config.xml" parent="/*">
