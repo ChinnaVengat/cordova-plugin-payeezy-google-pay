@@ -50,7 +50,7 @@ sgap.requestPayment(
 ```
       
   - Initiates the payment journey for the user to complete.
-  - `price` must be a string representation of the total price - e.g. for £10.78, it would be `10.78`
+  - `price` must be a string representation of the total price - e.g. for $10.78, it would be `10.78`
   - `currency_code` must be a valid ISO 4217 currency code for the transaction
   - Resolves when the journey is complete, with the stripe token
   - Rejects if an error occurs
