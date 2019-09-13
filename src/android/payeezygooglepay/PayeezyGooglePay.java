@@ -54,7 +54,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.util.Arrays;
 
 public class PayeezyGooglePay extends CordovaPlugin {
-  private static final String SET_KEY = "set_key";
   private static final String IS_READY_TO_PAY = "is_ready_to_pay";
   private static final String REQUEST_PAYMENT = "request_payment";
   private static final BigDecimal MICROS = new BigDecimal(1000000d);
@@ -76,19 +75,10 @@ public class PayeezyGooglePay extends CordovaPlugin {
   public boolean execute(final String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
     callback = callbackContext;
 
-    // if (action.equals(SET_KEY)) {
-    //   this.setKey(data.getString(0));
-    // }
-
-    // These actions require the key to be already set
-    // if (!this.isInitialised()) {
-    //   this.callback.error("SGAP not initialised. Please run sgap.setKey(STRIPE_PUBLISHABLE).");
-    // }
-
     this.mPaymentsClient = Wallet.getPaymentsClient(
         this.cordova.getActivity().getApplicationContext(),
         new Wallet.WalletOptions.Builder()
-            .setEnvironment(this.environment)
+            .setEnvironment(WalletConstants.ENVIRONMENT_TEST)
             .build());
 
     if (action.equals(IS_READY_TO_PAY)) {
@@ -112,7 +102,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
       .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
       .build();
 
-    Task<Boolean> task = paymentsClient.isReadyToPay(request);
+    Task<Boolean> task = mPaymentsClient.isReadyToPay(request);
     final CallbackContext callbackContext = callback;
     task.addOnCompleteListener(
       new OnCompleteListener<Boolean>() {
@@ -120,7 +110,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
           try {
             boolean result = task.getResult(ApiException.class);
             if (!result) callbackContext.error("Not supported");
-            else callbackContext.success();
+            else callbackContext.success("isReadyToPay success");
 
           } catch (ApiException exception) {
             callbackContext.error(exception.getMessage());
@@ -149,13 +139,13 @@ public class PayeezyGooglePay extends CordovaPlugin {
     merchant_token = paymentDetails.getString("merchant_token");
     url = paymentDetails.getString("url");
 
-    TransactionInfo transaction = this.createTransaction(this.price,this.currency_code);
+    TransactionInfo transaction = this.createTransaction(price,currency_code);
         PaymentDataRequest request = this.createPaymentDataRequest(transaction);
     Activity activity = this.cordova.getActivity();
     if (request != null) {
       cordova.setActivityResultCallback(this);
       AutoResolveHelper.resolveTask(
-      paymentsClient.loadPaymentData(request),
+      mPaymentsClient.loadPaymentData(request),
           activity,
           LOAD_PAYMENT_DATA_REQUEST_CODE);
     }
@@ -180,8 +170,8 @@ public class PayeezyGooglePay extends CordovaPlugin {
         // not set in the PaymentRequest.
         if (token != null) {
             String billingName = paymentData.getCardInfo().getBillingAddress().getName();
-            Log.d("PaymentData", "PaymentMethodToken received");
-            this.sendRequestToFirstData(paymentData);
+             this.sendRequestToFirstData(paymentData);
+            // callback.success("PaymentMethodToken received");
         }
 
                         break;
@@ -234,7 +224,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
      * //@param env        First Data environment to be used
      */
     public void sendRequestToFirstData(final PaymentData paymentData) {
-
+        // callback.success("sendRequestToFirstData");
         try {
             //  Parse the Json token retrieved
             String tokenJSON = paymentData.getPaymentMethodToken().getToken();
@@ -258,7 +248,7 @@ public class PayeezyGooglePay extends CordovaPlugin {
                         public void onResponse(String response) {
                             //  request completed - launch the response activity
                             // startResponseActivity("SUCCESS", response);
-                             callback.success();
+                             callback.success(response);
                             
                         }
                     },
