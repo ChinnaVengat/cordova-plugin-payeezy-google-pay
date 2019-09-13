@@ -32,8 +32,6 @@ sgap.isReadyToPay()
  - Rejects if not, or if it encounters an error
 
 ```javascript
-sgap.requestPayment(paymentDetails)
-```
 sgap.requestPayment(
    {
       price: "12.50",
@@ -48,6 +46,7 @@ sgap.requestPayment(
       transaction_type: "purchase",
       url:'https://api-cert.payeezy.com/v1/transactions'
 });
+```
       
   - Initiates the payment journey for the user to complete.
   - `price` must be a string representation of the total price - e.g. for £10.78, it would be `10.78`
